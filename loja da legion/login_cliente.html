@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Login Cliente - Marketplace</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center;
+      font-family: 'Poppins', sans-serif;
+      background: url("https://images.pexels.com/photos/2516582/pexels-photo-2516582.jpeg?auto=compress&cs=tinysrgb&w=1920") no-repeat center center / cover;
+      position: relative; overflow: hidden; color: white;
+    }
+    body::before { content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.55); }
+    .glass-container {
+      position: relative; z-index: 2; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(16px);
+      border-radius: 16px; padding: 40px; width: 90%; max-width: 400px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2);
+      text-align: center; animation: fadeIn 1.2s ease-in-out;
+    }
+    h2 { margin-bottom: 20px; }
+    .input-group { position: relative; margin: 20px 0; }
+    .input-group input { width: 100%; padding: 12px; background: transparent; border: none; border-bottom: 2px solid #aaa; outline: none; color: white; font-size: 16px; }
+    .input-group label { position: absolute; top: 12px; left: 0; pointer-events: none; font-size: 14px; color: #ccc; transition: 0.3s ease; }
+    .input-group input:focus ~ label, .input-group input:valid ~ label { top: -8px; font-size: 12px; color: #00aaff; }
+    .input-group input:focus { border-bottom-color: #00aaff; }
+    .toggle-password { position: absolute; right: 10px; top: 10px; cursor: pointer; font-size: 14px; color: #ddd; }
+    button { width: 100%; padding: 14px; background: linear-gradient(135deg, #007bff, #004e92); border: none; border-radius: 30px; color: white; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 15px; font-size: 16px; }
+    button:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(0,123,255,0.5); }
+    a { display: block; margin-top: 15px; color: #00aaff; text-decoration: none; font-size: 14px; }
+    a:hover { text-decoration: underline; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+  <div class="glass-container">
+    <h2>Login Cliente 🔑</h2>
+    <form onsubmit="loginClient(event)">
+      <div class="input-group">
+        <input type="text" id="emailOrTel" required>
+        <label for="emailOrTel">Número ou Gmail</label>
+      </div>
+      <div class="input-group">
+        <input type="password" id="senha" required>
+        <label for="senha">Senha</label>
+        <span class="toggle-password" onclick="togglePassword('senha')">👁️</span>
+      </div>
+      <button type="submit" id="submitBtn">Entrar</button>
+    </form>
+    <a href="cadastro_cliente.html">Não tem conta? Cadastre-se</a>
+  </div>
+
+  <script>
+    // URL base da API
+    const API_BASE = "http://localhost:5000/api"; // Ajuste para a URL do seu backend
+
+    // Helpers simples (como os de window.utils)
+    const $ = id => document.getElementById(id);
+    async function apiGet(path){
+      const r = await fetch(API_BASE + path);
+      if (!r.ok) throw new Error(`Erro na API: ${r.status} ${r.statusText}`);
+      return r.json();
+    }
+
+    function togglePassword(id) {
+      const input = $(id);
+      input.type = input.type === "password" ? "text" : "password";
+    }
+
+    async function loginClient(event) {
+      event.preventDefault();
+      const btn = $('submitBtn');
+      btn.disabled = true;
+
+      const emailOrTel = $("emailOrTel").value.trim();
+      const senha = $("senha").value;
+
+      try {
+        const users = await apiGet('/users'); // Busca todos os usuários
+        const user = users.find(u => u.emailOrPhone === emailOrTel && u.password === senha && u.role === "client"); // Simula verificação
+        
+        if (user) {
+          localStorage.setItem("cliente_id", user._id);
+          localStorage.setItem("cliente_nome", user.name);
+          localStorage.setItem("cliente_emailOrTel", user.emailOrPhone);
+          localStorage.setItem("cliente_endereco", user.address);
+          localStorage.setItem("cliente_foto", user.photo || "");
+
+          alert("Login realizado com sucesso!");
+          window.location.href = "dashboard_cliente.html"; // Redireciona para o dashboard
+        } else {
+          alert("Credenciais inválidas! Verifique os dados.");
+          btn.disabled = false;
+        }
+      } catch (error) {
+        console.error("Erro ao fazer login via API:", error);
+        alert(`Erro ao fazer login: ${error.message || 'Verifique o console do navegador e o backend.'}`);
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

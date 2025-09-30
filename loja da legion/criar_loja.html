@@ -1,0 +1,229 @@
+
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Criar Loja - Marketplace</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; font-family: 'Poppins', sans-serif; background: url("https://images.pexels.com/photos/3771089/pexels-photo-3771089.jpeg") no-repeat center center/cover; position: relative; overflow: hidden; color: white; }
+    body::before { content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.55); }
+    .glass-container { position: relative; z-index: 2; background: rgba(255,255,255,0.1); backdrop-filter: blur(18px); border-radius: 18px; padding: 40px; width: 90%; max-width: 520px; box-shadow: 0 8px 40px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); text-align: center; animation: fadeIn 1.2s ease-in-out; max-height: 95vh; overflow-y: auto; }
+    h2 { margin-bottom: 20px; }
+    .input-group { position: relative; margin: 25px 0; }
+    .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 12px; background: transparent; border: none; border-bottom: 2px solid #aaa; outline: none; color: white; font-size: 16px; }
+    .input-group textarea { resize: none; }
+    .input-group label { position: absolute; top: 12px; left: 0; pointer-events: none; font-size: 14px; color: #ccc; transition: 0.3s ease; }
+    .input-group input:focus ~ label, .input-group input:valid ~ label, .input-group textarea:focus ~ label, .input-group textarea:valid ~ label, .input-group select:focus ~ label, .input-group select:valid ~ label { top: -10px; font-size: 12px; color: #ff9800; }
+    .input-group input:focus, .input-group select:focus, .input-group textarea:focus { border-bottom-color: #ff9800; }
+    option { color: black; }
+    button { width: 100%; padding: 14px; background: linear-gradient(135deg, #ff9800, #e65100); border: none; border-radius: 30px; color: white; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 20px; font-size: 16px; }
+    button:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(255,152,0,0.5); }
+    .glass-container::-webkit-scrollbar { width: 8px; }
+    .glass-container::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 4px; }
+    .glass-container::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); }
+  </style>
+</head>
+<body>
+  <div class="glass-container">
+    <h2>🏬 Criar Minha Loja</h2>
+    <form onsubmit="criarLoja(event)">
+      <div class="input-group">
+        <input type="text" id="nomeLoja" required>
+        <label for="nomeLoja">Nome da Loja</label>
+      </div>
+      <div class="input-group">
+        <textarea id="descricao" rows="3" required></textarea>
+        <label for="descricao">Descrição da Loja</label>
+      </div>
+      <div class="input-group">
+        <select id="categoria" required>
+          <option value="" disabled selected></option>
+          <option>Roupas</option>
+          <option>Eletrônicos</option>
+          <option>Alimentos</option>
+          <option>Farmácia</option>
+          <option>Beleza</option>
+        </select>
+        <label for="categoria">Categoria</label>
+      </div>
+      <div class="input-group">
+        <select id="nacionalidade" required>
+          <option value="" disabled selected></option>
+          <option>Angola</option>
+          <option>Brasil</option>
+          <option>Portugal</option>
+          <option>Moçambique</option>
+          <option>EUA</option>
+          <option>China</option>
+        </select>
+        <label for="nacionalidade">Nacionalidade</label>
+      </div>
+      <div class="input-group">
+        <input type="text" id="numeroLoja" required>
+        <label for="numeroLoja">Número da Loja</label>
+      </div>
+      <div class="input-group">
+        <input type="email" id="gmailLoja" required>
+        <label for="gmailLoja">Gmail da Loja</label>
+      </div>
+      <div class="input-group">
+        <input type="file" id="logoLoja" accept="image/*" required>
+        <label for="logoLoja">Logo da Loja</label>
+      </div>
+
+      <!-- Método de Pagamento -->
+      <div class="input-group">
+        <select id="metodoPagamento" onchange="mostrarCamposPagamento()" required>
+          <option value="" disabled selected></option>
+          <option value="visa">Visa</option>
+          <option value="master">MasterCard</option>
+          <option value="banco">Transferência Bancária</option>
+          <option value="paypal">PayPal</option>
+          <option value="atm">Multicaixa (Angola)</option>
+        </select>
+        <label for="metodoPagamento">Método de Pagamento</label>
+      </div>
+      <div id="pagamentoCampos"></div>
+
+      <button type="submit" id="btnSubmit">Registrar Loja</button>
+    </form>
+  </div>
+
+  <script>
+    // --- BASE JS --- (Embutido em todos os HTMLs)
+    const API_BASE = "http://localhost:5000/api"; // <<<< AJUSTAR CONFORME SEU BACKEND
+
+    const $ = id => document.getElementById(id);
+
+    // Helpers para requisições API
+    async function apiGet(path){
+      const r = await fetch(API_BASE + path);
+      if (!r.ok) { const errorBody = await r.text(); console.error(`API GET ${path} Error:`, r.status, r.statusText, errorBody); throw new Error(`Erro na API (${r.status}): ${r.statusText}. Detalhes: ${errorBody.substring(0, 100)}`); }
+      return r.json();
+    }
+    async function apiPost(path, body){
+      const r = await fetch(API_BASE + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!r.ok) { const errorBody = await r.text(); console.error(`API POST ${path} Error:`, r.status, r.statusText, errorBody); throw new Error(`Erro na API (${r.status}): ${r.statusText}. Detalhes: ${errorBody.substring(0, 100)}`); }
+      return r.json();
+    }
+    // --- FIM DO BASE JS ---
+
+    function mostrarCamposPagamento() {
+      const metodo = $("metodoPagamento").value;
+      const container = $("pagamentoCampos");
+      container.innerHTML = "";
+
+      if (["visa", "master"].includes(metodo)) {
+        container.innerHTML = `
+          <div class="input-group">
+            <input type="text" id="cardNumber" required inputmode="numeric" placeholder="Ex: 4111111111111111">
+            <label for="cardNumber">Número do Cartão</label>
+          </div>
+          <div class="input-group">
+            <input type="text" id="cardName" required>
+            <label for="cardName">Nome no Cartão</label>
+          </div>
+          <div class="input-group">
+            <input type="month" id="cardExpiry" required>
+            <label for="cardExpiry">Validade</label>
+          </div>
+          <div class="input-group">
+            <input type="password" id="cardCVV" maxlength="3" required inputmode="numeric">
+            <label for="cardCVV">CVV</label>
+          </div>`;
+      } else if (metodo === "banco") {
+        container.innerHTML = `
+          <div class="input-group">
+            <input type="text" id="iban" required placeholder="Ex: AO06 0040 ...">
+            <label for="iban">NIB/IBAN</label>
+          </div>`;
+      } else if (metodo === "paypal") {
+        container.innerHTML = `
+          <div class="input-group">
+            <input type="email" id="paypalEmail" required placeholder="email@paypal.com">
+            <label for="paypalEmail">Email PayPal</label>
+          </div>`;
+      } else if (metodo === "atm") {
+        container.innerHTML = `
+          <div class="input-group">
+            <input type="text" id="atmRef" required placeholder="Ref. Multicaixa">
+            <label for="atmRef">Referência Multicaixa</label>
+          </div>`;
+      }
+    }
+
+    async function criarLoja(event) {
+      event.preventDefault();
+      const btn = $('btnSubmit');
+      btn.disabled = true; // Desabilita o botão para evitar cliques múltiplos
+
+      let nome = $("nomeLoja").value.trim();
+      let descricao = $("descricao").value.trim();
+      let categoria = $("categoria").value;
+      let nacionalidade = $("nacionalidade").value;
+      let numero = $("numeroLoja").value.trim();
+      let gmail = $("gmailLoja").value.trim();
+      let pagamento = $("metodoPagamento").value;
+
+      let pagamentoDetalhes = {};
+      if (["visa", "master"].includes(pagamento)) {
+        pagamentoDetalhes = {
+          numeroCartao: ($("cardNumber")||{}).value || "",
+          nomeCartao: ($("cardName")||{}).value || "",
+          validade: ($("cardExpiry")||{}).value || "",
+          cvv: ($("cardCVV")||{}).value || ""
+        };
+      } else if (pagamento === "banco") {
+        pagamentoDetalhes = { iban: ($("iban")||{}).value || "" };
+      } else if (pagamento === "paypal") {
+        pagamentoDetalhes = { emailPaypal: ($("paypalEmail")||{}).value || "" };
+      } else if (pagamento === "atm") {
+        pagamentoDetalhes = { referencia: ($("atmRef")||{}).value || "" };
+      }
+
+      let logoInput = $("logoLoja");
+      let logo = "";
+
+      const executeSave = async () => {
+        const lojaPayload = {
+          nome, descricao, categoria, nacionalidade,
+          telefone: numero, email: gmail, pagamento,
+          pagamentoDetalhes, logo, produtos: []
+        };
+
+        try {
+          const createdStore = await apiPost('/stores', lojaPayload); // Chama a API
+          console.log("Loja criada no backend:", createdStore);
+
+          localStorage.setItem("loja_id", createdStore._id); // Salva o _id da loja
+          
+          // Redireciona para o dashboard
+          alert("Loja registrada com sucesso no sistema!");
+          window.location.href = "dashboard_loja.html"; 
+        } catch (error) {
+          console.error("Erro ao registrar loja via API:", error);
+          alert(`Erro ao registrar loja: ${error.message || 'Verifique o console do navegador e o backend.'}`);
+          btn.disabled = false; // Reabilita o botão
+        }
+      };
+
+      if (logoInput.files && logoInput.files[0]) {
+        let reader = new FileReader();
+        reader.onload = function(e) {
+          logo = e.target.result;
+          executeSave();
+        };
+        reader.readAsDataURL(logoInput.files[0]);
+      } else {
+        executeSave();
+      }
+    }
+  </script>
+</body>
+</html>
+```

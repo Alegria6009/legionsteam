@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8" />
+  <title>Checkout - Marketplace</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{ --glass-bg: rgba(255,255,255,0.08); --accent: #ff9800; --fg: #fff; --muted: rgba(255,255,255,0.7); }
+    html,body{height:100%;margin:0;font-family:'Poppins',sans-serif;background:linear-gradient(120deg,#0f2027,#203a43,#2c5364);color:var(--fg);}
+    .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+    .card{ width:100%;max-width:980px;background:var(--glass-bg);backdrop-filter:blur(14px); border-radius:16px;padding:24px;box-shadow:0 10px 40px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.06);}
+    h1{margin:0 0 12px;font-size:22px;color:var(--accent);text-align:center}
+    .columns{display:grid;grid-template-columns:1fr 360px;gap:18px}
+    @media(max-width:900px){.columns{grid-template-columns:1fr;}}
+    .panel{background:rgba(0,0,0,0.12);padding:14px;border-radius:12px}
+    .item{display:flex;gap:12px;align-items:center;padding:10px;border-radius:8px;background:rgba(255,255,255,0.03);margin-bottom:10px}
+    .item img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,0.06)}
+    .item .meta{flex:1}
+    .muted{color:var(--muted);font-size:13px}
+    .total{font-weight:700;font-size:18px;margin-top:12px}
+    .btn{display:inline-block;background:linear-gradient(135deg,var(--accent),#e6b800);color:#222;border:none;padding:10px 14px;border-radius:12px;cursor:pointer;margin-top:12px}
+    .btn.secondary{background:rgba(255,255,255,0.12);color:var(--fg)}
+    .panel h3{margin:0 0 8px}
+    label{display:block;font-size:13px;margin-top:12px;color:var(--muted)}
+    select,input[type="text"],input[type="email"],input[type="number"],textarea, input[type="file"]{width:100%;padding:10px;border-radius:8px;border:none;background:rgba(0,0,0,0.22);color:var(--fg);margin-top:6px}
+    .small{font-size:13px;color:var(--muted)}
+    .ref-box{background:rgba(0,0,0,0.12);padding:10px;border-radius:8px;margin-top:8px}
+    .center{text-align:center}
+    .proof-preview{max-width:100%;border-radius:6px;margin-top:10px;height:100px;object-fit:contain;background:#000;}
+    footer{margin-top:18px;text-align:center;color:var(--muted);font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" role="main">
+      <h1>Checkout - Finalizar Compra</h1>
+
+      <div class="columns">
+        <!-- LEFT: CART / ITEMS -->
+        <div>
+          <div class="panel" aria-live="polite">
+            <h3>Itens no Carrinho</h3>
+            <div id="cartItems"></div>
+
+            <div class="total">Total: <span id="totalAmount">Kz 0</span></div>
+            <div class="center">
+              <button class="btn" id="btnProceed" onclick="proceedToPayment()">Prosseguir para Pagamento</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: PAYMENT & ORDER -->
+        <aside>
+          <div class="panel">
+            <h3>Dados da Loja / Pagamento</h3>
+
+            <label for="storeSelect">Escolher Loja</label>
+            <select id="storeSelect" onchange="onStoreChange()"></select>
+
+            <div id="storeInfo" style="margin-top:12px">
+              <div class="small" id="storeName"></div>
+              <div class="small" id="storeContact"></div>
+            </div>
+
+            <div id="paymentArea" style="display:none">
+              <label>Método de Pagamento</label>
+              <div id="paymentMethodDisplay" class="small"></div>
+
+              <div id="paymentDetailsDisplay">
+                <!-- Payment details will be rendered here -->
+              </div>
+
+              <label style="margin-top:12px">Enviar comprovativo (opcional)</label>
+              <input type="file" id="proofFile" accept="image/*,application/pdf">
+              <img id="proofPreview" class="proof-preview" style="display:none">
+
+              <div class="center">
+                <button class="btn" id="btnConfirm" onclick="confirmOrder()" style="margin-top:12px">Confirmar Pedido</button>
+                <button class="btn secondary" onclick="cancelCheckout()" style="margin-left:8px">Cancelar</button>
+              </div>
+
+              <div id="orderStatus" class="small" style="margin-top:10px;"></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <footer>
+        <div>Após confirmar, envie o comprovativo para o email ou WhatsApp da loja conforme instruções.</div>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "http://localhost:5000/api"; // Ajuste para a URL do seu backend
+
+    // Helpers simples (embutidos)
+    const $ = id => document.getElementById(id);
+    async function apiGet(path){
+      const r = await fetch(API_BASE + path);
+      if (!r.ok) throw new Error(`Erro na API: ${r.status} ${r.statusText}`);
+      return r.json();
+    }
+    async function apiPost(path, body){
+      const r = await fetch(API_BASE + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!r.ok) throw new Error(`Erro na API: ${r.status} ${r.statusText}`);
+      return r.json();
+    }
+    async function apiPut(path, body){
+      const r = await fetch(API_BASE + path, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!r.ok) throw new Error(`Erro na API: ${r.status} ${r.statusText}`);
+      return r.json();
+    }
+    const escapeHtml = s => { if(!s) return ''; return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); };
+    const formatKz = n => 'Kz ' + Number(n||0).toLocaleString('pt-PT');
+    const uid = () => Date.now() + Math.floor(Math.random()*900); // Unique ID generator
+
+    let allStores = [];
+    let currentSelectedStore = null; // Store object from API
+    let checkoutItems = [];
+    let checkoutTotal = 0;
+    let lastOrderId = null; // To attach proof
+
+    // --- Initial Load ---
+    async function initCheckoutPage() {
+      await loadCart();
+      await loadStores();
+      await checkInitialSelection(); // Check for pre-selected store/product from 'Buy Now'
+    }
+
+    // --- Load Cart Items ---
+    async function loadCart() {
+      const cart = JSON.parse(localStorage.getItem('carrinho_cliente') || '[]');
+      const map = {};
+      cart.forEach(it => {
+        const key = (it.storeId || '') + '|' + (it.productId || '') + '|' + (it.nome || '') + '|' + (it.preco || 0);
+        if (!map[key]) map[key] = { ...it, qty: 0 };
+        map[key].qty += (it.qty || 1); // Sum quantities
+      });
+      checkoutItems = Object.values(map);
+      
+      const container = $('cartItems');
+      container.innerHTML = '';
+      checkoutTotal = 0;
+
+      if (checkoutItems.length === 0) {
+        container.innerHTML = '<p class="small">Carrinho vazio.</p>';
+        $('btnProceed').disabled = true;
+      } else {
+        checkoutItems.forEach(it => {
+          checkoutTotal += it.preco * it.qty;
+          const div = document.createElement('div');
+          div.className = 'item';
+          // Placeholder for product image if available
+          // const productImg = await API.apiGet(`/products/${it.storeId}/${it.productIndex}`).then(p => p.foto).catch(()=>'');
+          div.innerHTML = `<div class="meta">
+            <div><strong>${escapeHtml(it.nome)}</strong></div>
+            <div class="small">${it.qty} x ${formatKz(it.preco)}</div>
+          </div>`;
+          container.appendChild(div);
+        });
+        $('btnProceed').disabled = false;
+      }
+      $('totalAmount').innerText = formatKz(checkoutTotal);
+    }
+
+    // --- Load Stores for Selection ---
+    async function loadStores() {
+      try {
+        allStores = await apiGet('/stores'); // Fetch all stores from API
+        const sel = $('storeSelect');
+        sel.innerHTML = '';
+
+        if (allStores.length === 0) {
+          sel.innerHTML = '<option value="">-- Nenhuma loja cadastrada --</option>';
+          hide($('paymentArea'));
+          return;
+        }
+        allStores.forEach((s, i) => {
+          const opt = document.createElement('option');
+          opt.value = s._id; // Use MongoDB _id as value
+          opt.textContent = escapeHtml(s.nome || `Loja ${i + 1}`);
+          sel.appendChild(opt);
+        });
+      } catch (error) {
+        console.error("Erro ao carregar lista de lojas da API:", error);
+        $('storeSelect').innerHTML = '<option value="">-- Erro ao carregar lojas --</option>';
+        hide($('paymentArea'));
+      }
+    }
+
+    // --- Check for pre-selected store/product (from 'Buy Now') ---
+    async function checkInitialSelection() {
+      const checkoutStoreId = localStorage.getItem('checkout_store_id');
+      const checkoutProductData = JSON.parse(localStorage.getItem('checkout_product_data') || 'null');
+
+      if (checkoutProductData && checkoutProductData.storeId && checkoutProductData.productId) {
+        // Clear existing cart and add only this one product
+        checkoutItems = [{
+            storeId: checkoutProductData.storeId,
+            productIndex: checkoutProductData.productIndex,
+            productId: checkoutProductData.productId,
+            nome: checkoutProductData.nome,
+            preco: checkoutProductData.preco,
+            qty: checkoutProductData.qty
+        }];
+        checkoutTotal = checkoutProductData.preco * checkoutProductData.qty;
+        $('totalAmount').innerText = formatKz(checkoutTotal);
+        renderCartItems(checkoutItems); // Render the single item
+        
+        localStorage.removeItem('checkout_product_data'); // Clear after use
+      }
+
+      if (checkoutStoreId && allStores.length > 0) {
+        $('storeSelect').value = checkoutStoreId;
+        onStoreChange();
+      } else if (allStores.length > 0) {
+        // Select first store by default if no pre-selection
+        $('storeSelect').value = allStores[0]._id;
+        onStoreChange();
+      }
+    }
+    
+    // Renders just items, used internally
+    function renderCartItems(items) {
+        const container = $('cartItems');
+        container.innerHTML = '';
+        if (items.length === 0) {
+            container.innerHTML = '<p class="small">Carrinho vazio.</p>';
+        } else {
+            items.forEach(it => {
+                const div = document.createElement('div');
+                div.className = 'item';
+                div.innerHTML = `<div class="meta">
+                    <div><strong>${escapeHtml(it.nome)}</strong></div>
+                    <div class="small">${it.qty} x ${formatKz(it.preco)}</div>
+                </div>`;
+                container.appendChild(div);
+            });
+        }
+    }
+
+
+    // --- On Store Selection Change ---
+    async function onStoreChange() {
+      const sel = $('storeSelect');
+      const storeId = sel.value; // MongoDB _id
+      localStorage.setItem('checkout_store_id', storeId);
+
+      currentSelectedStore = allStores.find(s => s._id === storeId);
+
+      if (!currentSelectedStore) {
+        $('storeInfo').innerHTML = '<div class="small">Loja não encontrada.</div>';
+        hide($('paymentArea'));
+        return;
+      }
+      $('storeName').innerText = escapeHtml(currentSelectedStore.nome || '');
+      $('storeContact').innerText = (currentSelectedStore.email ? 'Email: ' + escapeHtml(currentSelectedStore.email) : '') + (currentSelectedStore.telefone ? ' | WhatsApp: ' + escapeHtml(currentSelectedStore.telefone) : '');
+      
+      show($('paymentArea'));
+      await renderPaymentDetails();
+    }
+
+    // --- Render Payment Details ---
+    async function renderPaymentDetails() {
+      const method = currentSelectedStore.pagamento || 'Multicaixa';
+      const det = currentSelectedStore.pagamentoDetalhes || {};
+      const paymentDetailsContainer = $('paymentDetailsDisplay');
+      paymentDetailsContainer.innerHTML = '';
+
+      $('paymentMethodDisplay').innerText = escapeHtml(method);
+
+      if (method.toLowerCase().includes('atm') || method.toLowerCase().includes('multicaixa')) {
+        paymentDetailsContainer.innerHTML = `<p class="small">Referência Multicaixa: <strong>${escapeHtml(det.referencia || uid())}</strong></p>`;
+      } else if (method.toLowerCase().includes('banco') || method.toLowerCase().includes('transfer')) {
+        paymentDetailsContainer.innerHTML = `<p class="small">IBAN/NIB: <strong>${escapeHtml(det.iban || 'N/A')}</strong></p>`;
+      } else if (method.toLowerCase().includes('paypal')) {
+        paymentDetailsContainer.innerHTML = `<p class="small">PayPal: <strong>${escapeHtml(det.emailPaypal || currentSelectedStore.email || 'N/A')}</strong></p>`;
+      } else if (method.toLowerCase().includes('visa') || method.toLowerCase().includes('master')) {
+        paymentDetailsContainer.innerHTML = `<p class="small">Número Cartão: <strong>${escapeHtml(det.numeroCartao?.slice(-4) || 'N/A')}</strong></p>`;
+      }
+      // Add more methods as needed
+    }
+
+    // --- Proceed to Payment (initial validation) ---
+    function proceedToPayment() {
+      if (checkoutItems.length === 0) { alert('Carrinho vazio. Adicione produtos antes.'); return; }
+      if (!currentSelectedStore) { alert('Selecione a loja para pagamento.'); return; }
+      show($('paymentArea'));
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); // Scroll to bottom
+    }
+
+    // --- Confirm Order ---
+    async function confirmOrder() {
+      if (!currentSelectedStore) { alert('Selecione uma loja.'); return; }
+      if (checkoutItems.length === 0) { alert('Carrinho vazio.'); return; }
+      if (!confirm('Confirmar este pedido? Após a confirmação, envie o comprovativo.')) return;
+
+      const orderId = uid();
+      const customerName = localStorage.getItem('cliente_nome') || 'Cliente';
+      const customerEmail = localStorage.getItem('cliente_emailOrTel') || '';
+      const customerPhone = localStorage.getItem('cliente_tel') || '';
+      const customerPhoto = localStorage.getItem('cliente_foto') || '';
+      const clientMongoDBId = localStorage.getItem('cliente_id'); // Get client _id
+
+      // Prepare order items (to match backend Order Schema)
+      const orderItemsPayload = checkoutItems.map(item => ({
+          nome: item.nome,
+          preco: item.preco,
+          qty: item.qty,
+          productIndex: item.productIndex,
+          productId: item.productId // Send actual product _id
+      }));
+
+      const orderPayload = {
+        id: orderId, // This id is for local reference, MongoDB will generate _id
+        store: currentSelectedStore._id, // MongoDB _id of the store
+        storeIndex: allStores.findIndex(s => s._id === currentSelectedStore._id), // Local index for backend compatibility (optional)
+        items: orderItemsPayload,
+        total: checkoutTotal,
+        status: 'Pendente',
+        customerName: customerName,
+        customerEmail: customerEmail,
+        customerPhone: customerPhone,
+        customerPhoto: customerPhoto,
+        proof: null, // To be uploaded
+        log: `Pedido criado em ${new Date().toLocaleString()}`,
+        clientRefId: clientMongoDBId // Link to actual client user _id
+      };
+
+      try {
+        const createdOrder = await apiPost('/orders', orderPayload); // Create order in backend
+        console.log("Pedido criado no backend:", createdOrder);
+        lastOrderId = createdOrder._id; // Save backend _id for proof upload
+
+        // Update localStorage (pedidos_cliente and pedidos_vendedor)
+        orderPayload._id = createdOrder._id; // Add backend _id to local copy
+        let pedidosCliente = JSON.parse(localStorage.getItem('pedidos_cliente') || '[]');
+        pedidosCliente.push(orderPayload);
+        localStorage.setItem('pedidos_cliente', JSON.stringify(pedidosCliente));
+
+        let pedidosVendedor = JSON.parse(localStorage.getItem('pedidos_vendedor') || '[]');
+        pedidosVendedor.push(orderPayload);
+        localStorage.setItem('pedidos_vendedor', JSON.stringify(pedidosVendedor));
+
+        localStorage.setItem('carrinho_cliente', '[]'); // Clear cart
+        await loadCart(); // Re-render cart
+
+        $('orderStatus').innerHTML = `Pedido criado com sucesso! ID: <strong>${createdOrder._id}</strong>.<br>Aguardando comprovativo.`;
+        alert('Pedido criado com sucesso! Envie o comprovativo de pagamento.');
+        // Optional: Scroll to proof upload field
+        $('proofFile').scrollIntoView({ behavior: 'smooth' });
+
+      } catch (error) {
+        console.error("Erro ao criar pedido via API:", error);
+        alert(`Erro ao criar pedido: ${error.message || 'Verifique o console e o backend.'}`);
+      }
+    }
+
+    // --- Upload Proof ---
+    $('proofFile').addEventListener('change', async function(ev) {
+      const file = ev.target.files[0];
+      if (!file) return;
+      if (!lastOrderId) { alert('Confirme o pedido antes de enviar o comprovativo.'); return; }
+      
+      const reader = new FileReader();
+      reader.onload = async e => {
+        const data = e.target.result;
+        try {
+          const updatedOrder = await apiPut(`/orders/${lastOrderId}`, { proof: data, status: 'Aguardando Verificação', log: `Comprovativo enviado em ${new Date().toLocaleString()}` }); // API call
+          console.log("Comprovativo enviado e pedido atualizado:", updatedOrder);
+          alert('Comprovativo enviado com sucesso!');
+
+          // Update local storage copies
+          let pc = JSON.parse(localStorage.getItem('pedidos_cliente') || '[]');
+          pc = pc.map(o => o._id === lastOrderId ? updatedOrder : o);
+          localStorage.setItem('pedidos_cliente', JSON.stringify(pc));
+
+          let pv = JSON.parse(localStorage.getItem('pedidos_vendedor') || '[]');
+          pv = pv.map(o => o._id === lastOrderId ? updatedOrder : o);
+          localStorage.setItem('pedidos_vendedor', JSON.stringify(pv));
+
+          // Show preview
+          const mime = file.type;
+          if (mime.startsWith('image/')) { $('proofPreview').src = data; $('proofPreview').style.display = 'block'; }
+          else { $('proofPreview').style.display = 'none'; }
+
+        } catch (error) {
+          console.error("Erro ao enviar comprovativo via API:", error);
+          alert(`Erro ao enviar comprovativo: ${error.message || 'Verifique o console e o backend.'}`);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // --- Cancel Checkout ---
+    function cancelCheckout() {
+      if (confirm('Deseja cancelar o checkout? Seu carrinho será mantido.')) {
+        window.location.href = "dashboard_cliente.html"; // Go back
+      }
+    }
+
+    // --- Initialize ---
+    initCheckoutPage();
+  </script>
+</body>
+</html>

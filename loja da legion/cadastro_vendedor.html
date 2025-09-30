@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Cadastro Vendedor - Marketplace</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; font-family: 'Poppins', sans-serif; background: url("https://images.pexels.com/photos/5632381/pexels-photo-5632381.jpeg?auto=compress&cs=tinysrgb&w=1920") no-repeat center center/cover; position: relative; overflow: hidden; color: white; }
+    body::before { content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.55); }
+    .glass-container { position: relative; z-index: 2; background: rgba(255,255,255,0.1); backdrop-filter: blur(18px); border-radius: 18px; padding: 40px; width: 90%; max-width: 420px; box-shadow: 0 8px 40px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); text-align: center; animation: fadeIn 1.2s ease-in-out; max-height: 95vh; overflow-y: auto; }
+    h2 { margin-bottom: 20px; }
+    .input-group { position: relative; margin: 20px 0; }
+    .input-group input { width: 100%; padding: 12px; background: transparent; border: none; border-bottom: 2px solid #aaa; outline: none; color: white; font-size: 16px; }
+    .input-group label { position: absolute; top: 12px; left: 0; pointer-events: none; font-size: 14px; color: #ccc; transition: 0.3s ease; }
+    .input-group input:focus ~ label, .input-group input:valid ~ label { top: -8px; font-size: 12px; color: #ff9800; }
+    .input-group input:focus { border-bottom-color: #ff9800; }
+    .toggle-password { position: absolute; right: 10px; top: 10px; cursor: pointer; font-size: 14px; color: #ddd; }
+    button { width: 100%; padding: 14px; background: linear-gradient(135deg, #ff9800, #e65100); border: none; border-radius: 30px; color: white; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 15px; font-size: 16px; }
+    button:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(255,152,0,0.5); }
+    a { display: block; margin-top: 15px; color: #00aaff; text-decoration: none; font-size: 14px; }
+    a:hover { text-decoration: underline; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    .glass-container::-webkit-scrollbar { width: 8px; }
+    .glass-container::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 4px; }
+    .glass-container::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); }
+  </style>
+</head>
+<body>
+  <div class="glass-container">
+    <h2>Cadastro Vendedor 💼</h2>
+    <form onsubmit="registerSeller(event)">
+      <div class="input-group">
+        <input type="text" id="responsavel" required>
+        <label for="responsavel">Nome do Responsável</label>
+      </div>
+      <div class="input-group">
+        <input type="text" id="emailOrTel" required>
+        <label for="emailOrTel">Número de telefone ou Gmail</label>
+      </div>
+      <div class="input-group">
+        <input type="password" id="senha" required>
+        <label for="senha">Senha</label>
+        <span class="toggle-password" onclick="togglePassword('senha')">👁️</span>
+      </div>
+      <div class="input-group">
+        <input type="password" id="confirmarSenha" required>
+        <label for="confirmarSenha">Confirmar Senha</label>
+        <span class="toggle-password" onclick="togglePassword('confirmarSenha')">👁️</span>
+      </div>
+      <button type="submit" id="submitBtn">Criar Conta</button>
+    </form>
+    <a href="login_vendedor.html">Já tem conta? Entrar</a>
+  </div>
+
+  <script>
+    const API_BASE = "http://localhost:5000/api"; // Ajuste para a URL do seu backend
+
+    // Helpers simples (embutidos)
+    const $ = id => document.getElementById(id);
+    async function apiPost(path, body){
+      const r = await fetch(API_BASE + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!r.ok) throw new Error(`Erro na API: ${r.status} ${r.statusText}`);
+      return r.json();
+    }
+
+    function togglePassword(id) {
+      const input = $(id);
+      input.type = input.type === "password" ? "text" : "password";
+    }
+
+    async function registerSeller(event) {
+      event.preventDefault();
+      const btn = $('submitBtn');
+      btn.disabled = true;
+
+      const nome = $("responsavel").value.trim();
+      const emailOrTel = $("emailOrTel").value.trim();
+      const senha = $("senha").value;
+      const confirmarSenha = $("confirmarSenha").value;
+
+      if (senha !== confirmarSenha) {
+        alert("As senhas não coincidem!");
+        btn.disabled = false;
+        return;
+      }
+      
+      const userPayload = {
+        name: nome,
+        emailOrPhone: emailOrTel,
+        password: senha, // Em produção, hash a senha (bcrypt)
+        role: "seller", // Diferencia este usuário como vendedor
+        address: "" // Vendedores podem não ter endereço pessoal no cadastro inicial
+      };
+
+      try {
+        const newUser = await apiPost('/users', userPayload); // Chama a API
+        console.log("Vendedor registrado no backend:", newUser);
+        
+        // Salvar _id e nome do vendedor no localStorage para a sessão
+        localStorage.setItem("vendedor_id", newUser._id);
+        localStorage.setItem("vendedor_nome", newUser.name);
+        localStorage.setItem("vendedor_emailOrTel", newUser.emailOrTel);
+
+        alert("Conta de vendedor criada com sucesso! Faça login para continuar.");
+        window.location.href = "login_vendedor.html";
+      } catch (error) {
+        console.error("Erro ao registrar vendedor via API:", error);
+        alert(`Erro ao registrar vendedor: ${error.message || 'Verifique o console do navegador e o backend.'}`);
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

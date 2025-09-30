@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Lojas - Marketplace</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { margin:0; font-family:'Poppins',sans-serif; background:linear-gradient(120deg,#0f2027,#203a43,#2c5364); color:white; padding:20px; }
+    h1{text-align:center;color:#ffd700;margin-bottom:20px;}
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px; }
+    .loja-card {
+      background:rgba(255,255,255,0.15); backdrop-filter:blur(12px); border-radius:12px; padding:15px;
+      text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.4);
+      display:flex; flex-direction:column; align-items:center;
+    }
+    .loja-card img{width:80px;height:80px;object-fit:cover;border-radius:10px;margin-bottom:10px;border:2px solid #ffd700;}
+    .loja-card h3 { margin-top: 10px; margin-bottom: 5px; font-size: 1.1em; color: white; }
+    .loja-card p { margin: 0; font-size: 0.9em; color: rgba(255,255,255,0.7); line-height: 1.4; }
+    .loja-card .description-snippet { font-size: 0.85em; color: rgba(255,255,255,0.6); margin: 8px 0; max-height: 2.5em; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .loja-card .payment-method { font-size: 0.8em; color: #a2e6ff; margin-top: 5px; }
+    .btn { background:linear-gradient(135deg,#ff9800,#e6b800); border:none; border-radius:20px; padding:8px 16px; color:#111; font-weight:bold; cursor:pointer; margin-top: auto; }
+    .btn:hover{transform:scale(1.05);}
+  </style>
+</head>
+<body>
+  <h1>🏬 Lojas</h1>
+  <div class="grid" id="listaLojas">
+    <p style="text-align:center; color:rgba(255,255,255,0.7);">Carregando lojas...</p>
+  </div>
+
+  <script>
+    // --- JS BASE (INCLUA ESTE BLOCO EM CADA HTML) ---
+    const API_BASE = "http://localhost:5000/api"; // <<<< AJUSTAR CONFORME SEU BACKEND
+
+    // Helpers simples para API e DOM (agora embutidos)
+    const $ = id => document.getElementById(id); // Helper para document.getElementById
+    const escapeHtml = s => { if(!s) return ''; return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); };
+    // Outros helpers (apiPost, apiPut, apiDelete, formatKz, uid) seriam definidos aqui se fossem necessários nesta página
+    async function apiGet(path){
+      const r = await fetch(API_BASE + path);
+      if (!r.ok) { const errorBody = await r.text(); console.error(`API GET ${path} Error:`, r.status, r.statusText, errorBody); throw new Error(`Erro na API (${r.status}): ${r.statusText}. Detalhes: ${errorBody.substring(0, 100)}`); }
+      return r.json();
+    }
+    // --- FIM DO JS BASE ---
+
+    async function renderLojas(){
+      try {
+        const lojas = await apiGet('/stores'); // Chama a API para buscar todas as lojas
+        let html = "";
+        if (!lojas || lojas.length === 0) {
+          html = "<p style='text-align:center;'>Nenhuma loja cadastrada ainda.</p>";
+        } else {
+          lojas.forEach((l)=>{
+            if (l._id && l.nome) { 
+              const descSnippet = l.descricao ? l.descricao.substring(0, 70) + (l.descricao.length > 70 ? '...' : '') : 'Sem descrição.';
+              html+=`
+                <div class="loja-card">
+                  <img src="${l.logo||'https://via.placeholder.com/80'}" alt="Logo da loja ${escapeHtml(l.nome)}">
+                  <h3>${escapeHtml(l.nome)}</h3>
+                  <p>${escapeHtml(l.categoria || 'N/A')}</p>
+                  <p class="description-snippet">${escapeHtml(descSnippet)}</p>
+                  <p class="payment-method">Pagamento: ${escapeHtml(l.pagamento || 'N/A')}</p>
+                  <button class="btn" onclick="verLoja('${l._id}')">Ver Loja</button>
+                </div>`;
+            }
+          });
+        }
+        $('listaLojas').innerHTML = html;
+      } catch (error) {
+        console.error("Erro ao carregar lojas da API:", error);
+        $('listaLojas').innerHTML = "<p style='text-align:center; color: crimson;'>Erro ao carregar lojas. Verifique o console do navegador e o backend.</p>";
+      }
+    }
+
+    function verLoja(storeId){
+      // Salva o _id da loja para que loja.html saiba qual loja exibir
+      localStorage.setItem("loja_id", storeId); 
+      window.location.href="loja.html";
+    }
+    
+    renderLojas(); // Carrega as lojas ao iniciar a página
+  </script>
+</body>
+</html>

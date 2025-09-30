@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard do Cliente</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(120deg, #0f2027, #203a43, #2c5364);
+      color: white;
+      padding: 20px;
+    }
+    .container { max-width: 1100px; margin: auto; }
+    h1 { text-align: center; margin-bottom: 20px; color: #ffd700; }
+
+    .menu { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-bottom:20px; }
+    .menu button {
+      padding:10px 18px; border:none; border-radius:20px;
+      background:rgba(255,255,255,0.1); color:white; cursor:pointer;
+    }
+    .menu .active, .menu button:hover { background:rgba(255,255,255,0.6); color:black; font-weight:bold; }
+
+    .section {
+      display:none; background:rgba(255,255,255,0.15); backdrop-filter:blur(14px);
+      border-radius:16px; padding:20px; margin-bottom:20px;
+    }
+    .section.active { display:block; }
+
+    .favorito-card, .cart-item, .pedido-card, .comentario, .loja-card {
+      background:rgba(255,255,255,0.12); padding:12px; margin:8px 0; border-radius:10px;
+    }
+    textarea,input,select {
+      width:100%; margin:6px 0; padding:10px; border-radius:10px;
+      border:none; outline:none; background:rgba(255,255,255,0.15); color:white;
+    }
+    textarea{ resize:none; }
+
+    .btn { background:rgba(255,255,255,0.3); border:none; border-radius:20px; padding:8px 16px; color:white; cursor:pointer; margin-top:6px;}
+    .btn:hover { background:rgba(255,255,255,0.6); color:black; }
+    .btn-remove { background:crimson; border:none; border-radius:8px; padding:6px 10px; color:white; cursor:pointer; }
+
+    .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:15px;}
+    .loja-card{text-align:center;}
+    .loja-card img{width:80px;height:80px;object-fit:cover;border-radius:10px;border:2px solid #ffd700;margin-bottom:10px;}
+
+    .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+      background:rgba(0,0,0,0.7); justify-content:center; align-items:center; z-index:999;}
+    .modal-content { background:rgba(255,255,255,0.15); backdrop-filter:blur(12px);
+      border-radius:16px; padding:20px; max-width:500px; color:white; }
+    .modal-content ul{text-align:left;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>👤 Dashboard do Cliente</h1>
+
+    <div class="menu">
+      <button class="active" onclick="showTab(event,'perfil')">👤 Perfil</button>
+      <button onclick="showTab(event,'favoritos')">⭐ Favoritos</button>
+      <button onclick="showTab(event,'carrinho')">🛒 Carrinho</button>
+      <button onclick="showTab(event,'pedidos')">📦 Pedidos</button>
+      <button onclick="showTab(event,'comentarios')">💬 Comentários</button>
+      <button onclick="showTab(event,'lojas')">🏬 Ver Lojas</button>
+      <button onclick="showTab(event,'config')">⚙️ Configurações</button>
+    </div>
+
+    <!-- PERFIL -->
+    <div id="perfil" class="section active">
+      <h2>📋 Meu Perfil</h2>
+      <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+        <img id="fotoPerfil" src="https://via.placeholder.com/100"
+             alt="Foto de Perfil"
+             style="width:100px;height:100px;border-radius:50%;border:2px solid #ffd700;object-fit:cover;">
+        <div>
+          <p><strong>Nome:</strong> <span id="clienteNome">Usuário</span></p>
+          <p><strong>Email/Telefone:</strong> <span id="clienteEmail">teste@exemplo.com</span></p>
+          <p><strong>Endereço:</strong> <a id="clienteEndereco" href="#" target="_blank">Sem endereço</a></p>
+          <p><strong>Nacionalidade:</strong> <span id="clienteNacionalidade">Angola</span></p>
+          <label class="btn">Alterar Foto
+            <input type="file" id="inputFotoPerfil" style="display:none;" accept="image/*" onchange="uploadFotoPerfil(event)">
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- FAVORITOS -->
+    <div id="favoritos" class="section">
+      <h2>⭐ Favoritos</h2>
+      <div id="listaFavoritos"></div>
+    </div>
+
+    <!-- CARRINHO -->
+    <div id="carrinho" class="section">
+      <h2>🛒 Meu Carrinho</h2>
+      <div id="listaCarrinho"></div>
+      <p><strong>Total:</strong> <span id="totalCarrinho">0</span> Kz</p>
+      <button class="btn" onclick="abrirPagamento()">💳 Finalizar Compra</button>
+    </div>
+
+    <!-- PEDIDOS -->
+    <div id="pedidos" class="section">
+      <h2>📦 Histórico de Pedidos</h2>
+      <div id="listaPedidos"></div>
+    </div>
+
+    <!-- COMENTÁRIOS -->
+    <div id="comentarios" class="section">
+      <h2>💬 Meus Comentários</h2>
+      <div id="listaComentarios"></div>
+      <select id="produtoReview"><option value="">Selecione um pedido...</option></select>
+      <textarea id="novoComentario" placeholder="Escreva um comentário..."></textarea>
+      <label>⭐ Nota:
+        <select id="notaReview">
+          <option value="5">5 ★★★★★</option>
+          <option value="4">4 ★★★★</option>
+          <option value="3">3 ★★★</option>
+          <option value="2">2 ★★</option>
+          <option value="1">1 ★</option>
+        </select>
+      </label>
+      <button class="btn" onclick="addComentario()">Enviar</button>
+    </div>
+
+    <!-- LOJAS -->
+    <div id="lojas" class="section">
+      <h2>🏬 Lojas Cadastradas</h2>
+      <div id="listaLojas" class="grid"></div>
+    </div>
+
+    <!-- CONFIG -->
+    <div id="config" class="section">
+      <h2>⚙️ Configurações</h2>
+      <button class="btn" onclick="trocarIdioma()">🌐 Trocar Idioma</button><br>
+      <button class="btn" style="background:crimson;" onclick="removerConta()">🗑️ Excluir Conta</button><br>
+      <button class="btn" onclick="sair()">🚪 Sair</button>
+    </div>
+  </div>
+
+  <!-- MODAL PAGAMENTO -->
+  <div id="pagamentoModal" class="modal">
+    <div class="modal-content">
+      <h2>💳 Procedimentos de Pagamento</h2>
+      <p><strong>Total:</strong> <span id="valorTotal">0</span> Kz</p>
+      <ul>
+        <li>📌 Multicaixa: <span id="multicaixaRef">1234-5678</span></li>
+        <li>🏦 IBAN: <span id="nib">AO06 0040 0000 1234</span></li>
+        <li>💳 Visa/Master: <span id="card">**** 3456</span></li>
+        <li>💻 PayPal: <span id="paypal">vendedor@paypal.com</span></li>
+      </ul>
+      <p>Envie comprovativo para:<br>
+        📧 <span id="emailVendedor">loja@exemplo.com</span> | 📱 WhatsApp: <span id="whatsappVendedor">+244 900 000 000</span></p>
+      <button class="btn" onclick="confirmarCompra()">✅ Confirmar Pedido</button>
+      <button class="btn" style="background:crimson;" onclick="fecharPagamento()">❌ Cancelar</button>
+    </div>
+  </div>
+
+  <script>
+    // Alternar abas
+    function showTab(evt,id){
+      document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      document.querySelectorAll('.menu button').forEach(b=>b.classList.remove('active'));
+      evt.target.classList.add('active');
+    }
+
+    // Foto de perfil
+    function uploadFotoPerfil(event){
+      const file=event.target.files[0];
+      if(file){
+        const reader=new FileReader();
+        reader.onload=function(e){
+          document.getElementById("fotoPerfil").src=e.target.result;
+          localStorage.setItem("cliente_foto",e.target.result);
+        }
+        reader.readAsDataURL(file);
+      }
+    }
+    let fotoSalva=localStorage.getItem("cliente_foto");
+    if(fotoSalva){document.getElementById("fotoPerfil").src=fotoSalva;}
+
+    // Carrinho
+    function renderCarrinho(){
+      let carrinho=JSON.parse(localStorage.getItem("carrinho_cliente")||"[]");
+      let html=""; let total=0;
+      carrinho.forEach((p,idx)=>{
+        total+=parseInt(p.preco);
+        html+=`<div class="cart-item">${p.nome} - Kz ${p.preco} <button class="btn-remove" onclick="removerCarrinho(${idx})">Remover</button></div>`;
+      });
+      document.getElementById("listaCarrinho").innerHTML=html||"<p>Carrinho vazio</p>";
+      document.getElementById("totalCarrinho").innerText=total;
+    }
+    function removerCarrinho(i){
+      let carrinho=JSON.parse(localStorage.getItem("carrinho_cliente")||"[]");
+      carrinho.splice(i,1);
+      localStorage.setItem("carrinho_cliente",JSON.stringify(carrinho));
+      renderCarrinho();
+    }
+    function abrirPagamento(){
+      document.getElementById("valorTotal").innerText=document.getElementById("totalCarrinho").innerText;
+      document.getElementById("pagamentoModal").style.display="flex";
+    }
+    function fecharPagamento(){ document.getElementById("pagamentoModal").style.display="none"; }
+
+    // Confirmar compra
+    function confirmarCompra(){
+      let total=document.getElementById("totalCarrinho").innerText;
+      if(total=="0"){ alert("Seu carrinho está vazio!"); return; }
+      let pedidoId=Date.now();
+      let cliente=localStorage.getItem("cliente_nome")||"Cliente";
+      let email=localStorage.getItem("cliente_emailOrTel")||"-";
+      let tel=localStorage.getItem("cliente_tel")||"-";
+      let foto=localStorage.getItem("cliente_foto")||"https://via.placeholder.com/100";
+
+      let pedido={id:pedidoId,total:total,status:"Pendente",cliente:cliente,email:email,telefone:tel,foto:foto,log:new Date().toLocaleString()};
+      
+      let pedidosCliente=JSON.parse(localStorage.getItem("pedidos_cliente")||"[]");
+      pedidosCliente.push(pedido);
+      localStorage.setItem("pedidos_cliente",JSON.stringify(pedidosCliente));
+      
+      let pedidosLoja=JSON.parse(localStorage.getItem("pedidos_vendedor")||"[]");
+      pedidosLoja.push(pedido);
+      localStorage.setItem("pedidos_vendedor",JSON.stringify(pedidosLoja));
+
+      localStorage.setItem("carrinho_cliente","[]");
+
+      renderCarrinho(); renderPedidosCliente(); popularProdutosReview();
+      fecharPagamento();
+      alert("✅ Pedido confirmado! Envie comprovativo ao vendedor.");
+    }
+
+    // Pedidos
+    function renderPedidosCliente(){
+      let pedidos=JSON.parse(localStorage.getItem("pedidos_cliente")||"[]");
+      let pedidosLoja=JSON.parse(localStorage.getItem("pedidos_vendedor")||"[]");
+      pedidos=pedidos.map(p=>{
+        let upd=pedidosLoja.find(x=>x.id===p.id);
+        if(upd){ p.status=upd.status; p.log=upd.log;}
+        return p;
+      });
+      let html="";
+      pedidos.forEach(p=>{
+        html+=`<div class="pedido-card">
+          <img src="${p.foto}" style="width:30px;height:30px;border-radius:50%;vertical-align:middle;margin-right:8px;">
+          Pedido #${p.id} - ${p.total} Kz - 
+          <span style="color:${p.status==="Entregue"?"limegreen":"red"}">${p.status}</span><br>
+          <small>Última atualização: ${p.log}</small>
+        </div>`;
+      });
+      document.getElementById("listaPedidos").innerHTML=html||"<p>Nenhum pedido ainda</p>";
+    }
+
+    // Comentários com nota
+    function popularProdutosReview(){
+      let pedidos=JSON.parse(localStorage.getItem("pedidos_cliente")||"[]");
+      let select=document.getElementById("produtoReview");
+      select.innerHTML="<option value=''>Selecione um pedido...</option>";
+      pedidos.forEach(p=>{
+        select.innerHTML+=`<option value="${p.id}">Pedido #${p.id} (${p.total}Kz)</option>`;
+      });
+    }
+    function addComentario(){
+      const pedidoId=document.getElementById("produtoReview").value;
+      const txt=document.getElementById("novoComentario").value;
+      const nota=document.getElementById("notaReview").value;
+      if(!pedidoId || txt.trim()===""){alert("Selecione pedido e escreva comentário");return;}
+      let cliente=localStorage.getItem("cliente_nome")||"Cliente";
+      let foto=localStorage.getItem("cliente_foto")||"https://via.placeholder.com/40";
+      let review={pedido:pedidoId, cliente:cliente, foto:foto, texto:txt, nota:parseInt(nota), log:new Date().toLocaleString()};
+      let reviews=JSON.parse(localStorage.getItem("reviews")||"[]");
+      reviews.push(review);
+      localStorage.setItem("reviews",JSON.stringify(reviews));
+      document.getElementById("novoComentario").value="";
+      popularProdutosReview();
+      renderReviewsCliente();
+      alert("✅ Comentário enviado!");
+    }
+    function renderReviewsCliente(){
+      let reviews=JSON.parse(localStorage.getItem("reviews")||"[]");
+      let cliente=localStorage.getItem("cliente_nome")||"Cliente";
+      let html="";
+      reviews.filter(r=>r.cliente===cliente).forEach(r=>{
+        let estrelas="★".repeat(r.nota)+"☆".repeat(5-r.nota);
+        html+=`<div class="comentario">
+          <img src="${r.foto}" style="width:30px;height:30px;border-radius:50%;margin-right:6px;">
+          <strong>${r.cliente}</strong> (${estrelas})<br>
+          ${r.texto}<br>
+          <small>${r.log}</small>
+        </div>`;
+      });
+      document.getElementById("listaComentarios").innerHTML=html||"<p>Nenhum comentário seu ainda</p>";
+    }
+
+    // Lojas
+    function renderLojas(){
+      let lojas=JSON.parse(localStorage.getItem("lojas")||"[]");
+      let html="";
+      lojas.forEach((l,idx)=>{
+        html+=`<div class="loja-card">
+          <img src="${l.logo||'https://via.placeholder.com/80'}">
+          <h3>${l.nome}</h3>
+          <p>${l.categoria}</p>
+          <button class="btn" onclick="entrarLoja(${idx})">Ver Loja</button>
+        </div>`;
+      });
+      document.getElementById("listaLojas").innerHTML=html||"<p>Nenhuma loja cadastrada</p>";
+    }
+    function entrarLoja(i){
+      localStorage.setItem("loja_selecionada",i);
+      window.location.href="loja.html";
+    }
+
+    // Config
+    function trocarIdioma(){ alert("Troca de idioma em breve..."); }
+    function removerConta(){ localStorage.clear(); alert("Conta removida!"); window.location.href='index.html'; }
+    function sair(){ window.location.href='index.html'; }
+
+    // Inicialização
+    renderCarrinho();
+    renderPedidosCliente();
+    renderLojas();
+    popularProdutosReview();
+    renderReviewsCliente();
+
+    // Mock perfil cliente
+    document.getElementById("clienteNome").innerText=localStorage.getItem("cliente_nome")||"Usuário";
+    document.getElementById("clienteEmail").innerText=localStorage.getItem("cliente_emailOrTel")||"teste@exemplo.com";
+    document.getElementById("clienteEndereco").href=localStorage.getItem("cliente_endereco")||"#";
+    document.getElementById("clienteNacionalidade").innerText=localStorage.getItem("cliente_nacionalidade")||"Angola";
+  </script>
+  <script>window.__API_BASE__ = "http://localhost:5000/api";</script>
+<script src="script.js"></script>
+</body>
+</html>
