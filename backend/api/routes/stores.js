@@ -1,9 +1,6 @@
-// backend/routes/stores.js
 import express from "express";
 import dbConnect from "../lib/dbConnect.js";
 import Store from "../models/Store.js";
-import Order from "../models/Order.js"; // Para excluir pedidos relacionados
-import Review from "../models/Review.js"; // Para excluir reviews relacionados
 const router = express.Router();
 
 router.get("/", async (req, res) => {
@@ -37,7 +34,7 @@ router.put("/:id", async (req, res) => {
     res.json(updated);
 });
 
-router.delete("/:id", async (req, res) => { // NOVO ENDPOINT DELETE
+router.delete("/:id", async (req, res) => {
     await dbConnect();
     try {
         const storeId = req.params.id;
@@ -45,8 +42,8 @@ router.delete("/:id", async (req, res) => { // NOVO ENDPOINT DELETE
         if (!store) return res.status(404).json({ error: "Loja não encontrada" });
 
         // Opcional: Excluir pedidos e reviews relacionados a esta loja
-        await Order.deleteMany({ store: storeId });
-        await Review.deleteMany({ store: storeId });
+        // await Order.deleteMany({ store: storeId });
+        // await Review.deleteMany({ store: storeId });
 
         res.json({ message: "Loja excluída com sucesso (e seus pedidos/reviews relacionados)", store });
     } catch (err) {

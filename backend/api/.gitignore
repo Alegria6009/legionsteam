@@ -1,0 +1,17 @@
+# Logs e arquivos de sistema
+*.log
+*.swp
+*.DS_Store
+.vscode/
+.history/
+
+# Dependências
+node_modules/
+api/node_modules/
+
+# Variáveis de ambiente
+.env
+
+# Arquivos do frontend gerados (opcional, dependendo do seu build)
+frontend/dist/
+frontend/build/
